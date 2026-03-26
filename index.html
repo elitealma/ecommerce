@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELITE STRATEGY — Real-Time Campaign Monitor | Pegasus360</title>
+    <meta name="description" content="Dashboard de monitoreo en tiempo real para campañas de e-commerce con Supabase Realtime">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(18, 18, 30, 0.7);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8a8a9a;
+            --text-muted: #555566;
+            --accent-blue: #4f7df9;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06d6a0;
+            --accent-orange: #f77f00;
+            --accent-red: #ef476f;
+            --accent-yellow: #ffd166;
+            --accent-pink: #e040fb;
+            --gradient-hero: linear-gradient(135deg, #4f7df9 0%, #8b5cf6 50%, #e040fb 100%);
+            --gradient-success: linear-gradient(135deg, #06d6a0, #0ead69);
+            --gradient-warning: linear-gradient(135deg, #f77f00, #ffd166);
+            --gradient-danger: linear-gradient(135deg, #ef476f, #d63384);
+            --shadow-glow: 0 0 30px rgba(79, 125, 249, 0.15);
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(79, 125, 249, 0.06) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+                        radial-gradient(circle at 50% 50%, rgba(224, 64, 251, 0.03) 0%, transparent 50%);
+            z-index: 0;
+            animation: bgFloat 20s ease-in-out infinite;
+        }
+        @keyframes bgFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+        .app { position: relative; z-index: 1; }
+
+        /* Header */
+        header {
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-glass);
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 10, 15, 0.8);
+        }
+        .logo-section { display: flex; align-items: center; gap: 16px; }
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: var(--gradient-hero);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 800; color: white;
+            box-shadow: 0 4px 15px rgba(79, 125, 249, 0.3);
+        }
+        .logo-text h1 {
+            font-size: 18px; font-weight: 800;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .logo-text span { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 2px; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .live-badge {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(6, 214, 160, 0.1);
+            border: 1px solid rgba(6, 214, 160, 0.3);
+            padding: 6px 14px; border-radius: 20px;
+            font-size: 12px; font-weight: 600; color: var(--accent-cyan);
+        }
+        .live-dot {
+            width: 8px; height: 8px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .clock { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-secondary); }
+
+        /* Main Grid */
+        main { padding: 24px 32px; display: flex; flex-direction: column; gap: 24px; }
+
+        /* KPI Cards Row */
+        .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .kpi-card:nth-child(1)::before { background: var(--gradient-hero); }
+        .kpi-card:nth-child(2)::before { background: var(--gradient-success); }
+        .kpi-card:nth-child(3)::before { background: var(--gradient-warning); }
+        .kpi-card:nth-child(4)::before { background: var(--gradient-danger); }
+        .kpi-card:nth-child(5)::before { background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple)); }
+        .kpi-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.12); box-shadow: var(--shadow-glow); }
+        .kpi-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+        .kpi-value { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+        .kpi-value.blue { color: var(--accent-blue); }
+        .kpi-value.green { color: var(--accent-cyan); }
+        .kpi-value.orange { color: var(--accent-orange); }
+        .kpi-value.red { color: var(--accent-red); }
+        .kpi-value.pink { color: var(--accent-pink); }
+        .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+        .kpi-sub .up { color: var(--accent-cyan); }
+        .kpi-sub .down { color: var(--accent-red); }
+
+        /* Two-column layout */
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-glass);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .panel-title { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; }
+        .panel-badge {
+            font-size: 10px; font-weight: 600;
+            padding: 3px 10px; border-radius: 12px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .panel-badge.live { background: rgba(6,214,160,0.15); color: var(--accent-cyan); }
+        .panel-badge.strategy { background: rgba(247,127,0,0.15); color: var(--accent-orange); }
+        .panel-body { padding: 16px 20px; max-height: 420px; overflow-y: auto; }
+        .panel-body::-webkit-scrollbar { width: 4px; }
+        .panel-body::-webkit-scrollbar-track { background: transparent; }
+        .panel-body::-webkit-scrollbar-thumb { background: var(--border-glass); border-radius: 4px; }
+
+        /* Cart Status Grid */
+        .cart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .cart-stat {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .cart-stat:hover { border-color: rgba(255,255,255,0.15); }
+        .cart-stat .count { font-size: 24px; font-weight: 800; }
+        .cart-stat .label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+        .cart-stat.active .count { color: var(--accent-blue); }
+        .cart-stat.abandoned .count { color: var(--accent-orange); }
+        .cart-stat.recovering .count { color: var(--accent-yellow); }
+        .cart-stat.recovered .count { color: var(--accent-cyan); }
+        .cart-stat.converted .count { color: #06d6a0; }
+        .cart-stat.lost .count { color: var(--accent-red); }
+
+        /* Cart Item */
+        .cart-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+            animation: slideIn 0.4s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .cart-item:hover { border-color: rgba(255,255,255,0.12); }
+        .cart-avatar {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: white;
+            flex-shrink: 0;
+        }
+        .cart-info { flex: 1; min-width: 0; }
+        .cart-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cart-detail { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .cart-amount { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+        .status-badge {
+            font-size: 9px; font-weight: 700;
+            padding: 3px 8px; border-radius: 6px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .status-badge.activo { background: rgba(79,125,249,0.2); color: var(--accent-blue); }
+        .status-badge.abandonado { background: rgba(247,127,0,0.2); color: var(--accent-orange); }
+        .status-badge.en_recuperacion { background: rgba(255,209,102,0.2); color: var(--accent-yellow); }
+        .status-badge.recuperado { background: rgba(6,214,160,0.2); color: var(--accent-cyan); }
+        .status-badge.convertido { background: rgba(6,214,160,0.3); color: #0ead69; }
+        .status-badge.perdido { background: rgba(239,71,111,0.2); color: var(--accent-red); }
+
+        /* Event Feed */
+        .event-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .event-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+        .event-dot.meta { background: var(--accent-blue); }
+        .event-dot.google { background: var(--accent-cyan); }
+        .event-dot.tiktok { background: var(--accent-pink); }
+        .event-dot.organic { background: var(--text-muted); }
+        .event-content { flex: 1; }
+        .event-type { font-size: 12px; font-weight: 600; }
+        .event-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .event-time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+
+        /* Strategy Panel */
+        .strategy-section { margin-bottom: 20px; }
+        .strategy-title {
+            font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .strategy-title .icon { font-size: 16px; }
+        .rule-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid;
+        }
+        .rule-card.scale { border-left-color: var(--accent-cyan); }
+        .rule-card.kill { border-left-color: var(--accent-red); }
+        .rule-card.watch { border-left-color: var(--accent-orange); }
+        .rule-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .rule-label.scale { color: var(--accent-cyan); }
+        .rule-label.kill { color: var(--accent-red); }
+        .rule-label.watch { color: var(--accent-orange); }
+        .rule-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* Campaign Performance */
+        .full-panel { grid-column: 1 / -1; }
+        .campaign-table { width: 100%; border-collapse: collapse; }
+        .campaign-table th {
+            font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding: 10px 12px; text-align: left;
+            border-bottom: 1px solid var(--border-glass);
+        }
+        .campaign-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .campaign-table tr:hover td { background: var(--bg-glass); }
+        .campaign-table .campaign-name { font-weight: 600; }
+        .campaign-table .platform-tag {
+            font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .platform-tag.meta { background: rgba(79,125,249,0.2); color: var(--accent-blue); }
+        .platform-tag.google { background: rgba(6,214,160,0.2); color: var(--accent-cyan); }
+        .platform-tag.tiktok { background: rgba(224,64,251,0.2); color: var(--accent-pink); }
+        .action-tag { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 6px; text-transform: uppercase; }
+        .action-tag.scale { background: rgba(6,214,160,0.15); color: var(--accent-cyan); }
+        .action-tag.kill { background: rgba(239,71,111,0.15); color: var(--accent-red); }
+        .action-tag.optimize { background: rgba(247,127,0,0.15); color: var(--accent-orange); }
+        .action-tag.monitor { background: rgba(138,138,154,0.15); color: var(--text-secondary); }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Responsive */
+        @media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 900px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            main { padding: 16px; }
+            header { padding: 16px; }
+        }
+        @media (max-width: 600px) { .kpi-row { grid-template-columns: 1fr; } }
+
+        /* Toast notification */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .toast {
+            background: rgba(18, 18, 30, 0.95);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 12px 20px;
+            backdrop-filter: blur(20px);
+            display: flex; align-items: center; gap: 10px;
+            animation: toastIn 0.4s ease-out;
+            min-width: 280px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .toast-icon { font-size: 18px; }
+        .toast-text { font-size: 12px; color: var(--text-secondary); }
+        .toast-text strong { color: var(--text-primary); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header>
+            <div class="logo-section">
+                <div class="logo-icon">P</div>
+                <div class="logo-text">
+                    <h1>ELITE STRATEGY</h1>
+                    <span>Pegasus360 Agency • Real-Time Monitor</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="live-badge">
+                    <div class="live-dot"></div>
+                    SUPABASE REALTIME
+                </div>
+                <div class="clock" id="clock">--:--:--</div>
+            </div>
+        </header>
+
+        <main>
+            <!-- KPI Cards -->
+            <section class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-label">Sesiones Activas</div>
+                    <div class="kpi-value blue" id="kpi-sessions">--</div>
+                    <div class="kpi-sub"><span class="up">↗</span> <span id="kpi-sessions-detail">cargando...</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Conversiones Hoy</div>
+                    <div class="kpi-value green" id="kpi-conversions">--</div>
+                    <div class="kpi-sub"><span id="kpi-conversions-detail">cargando...</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Carritos Abandonados</div>
+                    <div class="kpi-value orange" id="kpi-abandoned">--</div>
+                    <div class="kpi-sub"><span id="kpi-abandoned-detail">cargando...</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Tasa Recuperación</div>
+                    <div class="kpi-value red" id="kpi-recovery">--</div>
+                    <div class="kpi-sub"><span id="kpi-recovery-detail">cargando...</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Revenue en Vivo</div>
+                    <div class="kpi-value pink" id="kpi-revenue">--</div>
+                    <div class="kpi-sub"><span id="kpi-revenue-detail">cargando...</span></div>
+                </div>
+            </section>
+
+            <!-- Two-column panels -->
+            <section class="content-grid">
+                <!-- Cart Lifecycle -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">🛒 Ciclo de Vida del Carrito</span>
+                        <span class="panel-badge live">● LIVE</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="cart-grid" id="cart-stats">
+                            <div class="cart-stat active"><div class="count" id="cart-active">-</div><div class="label">Activos</div></div>
+                            <div class="cart-stat abandoned"><div class="count" id="cart-abandoned">-</div><div class="label">Abandonados</div></div>
+                            <div class="cart-stat recovering"><div class="count" id="cart-recovering">-</div><div class="label">En Recup.</div></div>
+                            <div class="cart-stat recovered"><div class="count" id="cart-recovered">-</div><div class="label">Recuperados</div></div>
+                            <div class="cart-stat converted"><div class="count" id="cart-converted">-</div><div class="label">Convertidos</div></div>
+                            <div class="cart-stat lost"><div class="count" id="cart-lost">-</div><div class="label">Perdidos</div></div>
+                        </div>
+                        <div id="cart-list"></div>
+                    </div>
+                </div>
+
+                <!-- UTM Event Feed -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">📡 Feed de Eventos UTM</span>
+                        <span class="panel-badge live">● LIVE</span>
+                    </div>
+                    <div class="panel-body" id="event-feed"></div>
+                </div>
+
+                <!-- Campaign Performance -->
+                <div class="panel full-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">📊 Rendimiento de Campañas — Decisión en Tiempo Real</span>
+                        <span class="panel-badge strategy">ESTRATEGIA</span>
+                    </div>
+                    <div class="panel-body" style="max-height:none;overflow-x:auto;">
+                        <table class="campaign-table" id="campaign-table">
+                            <thead>
+                                <tr>
+                                    <th>Campaña</th>
+                                    <th>Plataforma</th>
+                                    <th>Sesiones</th>
+                                    <th>Clicks WA</th>
+                                    <th>Add to Cart</th>
+                                    <th>Compras</th>
+                                    <th>Revenue</th>
+                                    <th>Conv. Rate</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="campaign-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Strategy Rules -->
+                <div class="panel full-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">⚡ Estrategia de Acción Rápida — Reglas de Escalamiento</span>
+                        <span class="panel-badge strategy">PLAYBOOK</span>
+                    </div>
+                    <div class="panel-body" style="max-height:none;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                            <div class="strategy-section">
+                                <div class="strategy-title"><span class="icon">🚀</span> ESCALAR (2x Budget)</div>
+                                <div class="rule-card scale">
+                                    <div class="rule-label scale">Regla 1: ROAS > 3x</div>
+                                    <div class="rule-text">Si Revenue / Inversión > 3 en las últimas 4 horas → Duplicar presupuesto inmediatamente</div>
+                                </div>
+                                <div class="rule-card scale">
+                                    <div class="rule-label scale">Regla 2: CVR > 5%</div>
+                                    <div class="rule-text">Si tasa de conversión page_view → purchase > 5% → Escalar y crear Lookalike del público</div>
+                                </div>
+                                <div class="rule-card scale">
+                                    <div class="rule-label scale">Regla 3: CPA < $15K</div>
+                                    <div class="rule-text">Si el costo por adquisición baja de $15,000 COP → Escalar 50% cada 6 horas</div>
+                                </div>
+                            </div>
+                            <div class="strategy-section">
+                                <div class="strategy-title"><span class="icon">⚠️</span> OPTIMIZAR</div>
+                                <div class="rule-card watch">
+                                    <div class="rule-label watch">Regla 4: Abandono > 70%</div>
+                                    <div class="rule-text">Si carritos abandonados / carritos totales > 70% → Activar secuencia de WhatsApp + Email + Retargeting DPA</div>
+                                </div>
+                                <div class="rule-card watch">
+                                    <div class="rule-label watch">Regla 5: CTR < 1%</div>
+                                    <div class="rule-text">Si click-through rate del anuncio < 1% → Cambiar creativos y copys. No escalar.</div>
+                                </div>
+                                <div class="rule-card watch">
+                                    <div class="rule-label watch">Regla 6: Bounce > 60%</div>
+                                    <div class="rule-text">Si sesiones con 1 page_view / total > 60% → Revisar landing page y segmentación</div>
+                                </div>
+                            </div>
+                            <div class="strategy-section">
+                                <div class="strategy-title"><span class="icon">🛑</span> APAGAR</div>
+                                <div class="rule-card kill">
+                                    <div class="rule-label kill">Regla 7: 0 Compras en 8h</div>
+                                    <div class="rule-text">Si una campaña tiene >50 clicks y 0 compras en 8 horas → Pausar inmediatamente</div>
+                                </div>
+                                <div class="rule-card kill">
+                                    <div class="rule-label kill">Regla 8: CPA > $50K</div>
+                                    <div class="rule-text">Si costo por adquisición supera $50,000 COP → Apagar y reasignar budget a campaña ganadora</div>
+                                </div>
+                                <div class="rule-card kill">
+                                    <div class="rule-label kill">Regla 9: Carrito Recuperado</div>
+                                    <div class="rule-text">Cuando estado = 'recuperado' → Webhook a n8n → Detener retargeting de ese usuario + Registrar conversión en Meta/Google</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ============================================================
+        // SUPABASE REALTIME CONNECTION
+        // ============================================================
+        const SUPABASE_URL = 'https://uubivtpzkrqqkrrbtvey.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1Yml2dHB6a3JxcWtycmJ0dmV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MTkyMzMsImV4cCI6MjA4NjQ5NTIzM30.QkiTS8HgjY09SQwOMymRv1Jt6eZpBeHnN-ALQqY_fy8';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // State
+        let sessions = [];
+        let events = [];
+        let carts = [];
+
+        // ============================================================
+        // CLOCK
+        // ============================================================
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('es-CO', { hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ============================================================
+        // TOAST NOTIFICATIONS
+        // ============================================================
+        function showToast(icon, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100px)'; setTimeout(() => toast.remove(), 300); }, 4000);
+        }
+
+        // ============================================================
+        // DATA LOADING
+        // ============================================================
+        async function loadInitialData() {
+            try {
+                console.log('[ELITE] Connecting to Supabase...', SUPABASE_URL);
+                console.log('[ELITE] Supabase client:', supabase);
+                const [sessionsRes, eventsRes, cartsRes] = await Promise.all([
+                    supabase.from('sesiones').select('*').order('created_at', { ascending: false }),
+                    supabase.from('eventos_utm').select('*').order('created_at', { ascending: false }).limit(50),
+                    supabase.from('carritos').select('*').order('created_at', { ascending: false })
+                ]);
+                console.log('[ELITE] Sessions:', sessionsRes);
+                console.log('[ELITE] Events:', eventsRes);
+                console.log('[ELITE] Carts:', cartsRes);
+                if (sessionsRes.error) console.error('[ELITE] Sessions error:', sessionsRes.error);
+                if (eventsRes.error) console.error('[ELITE] Events error:', eventsRes.error);
+                if (cartsRes.error) console.error('[ELITE] Carts error:', cartsRes.error);
+                sessions = sessionsRes.data || [];
+                events = eventsRes.data || [];
+                carts = cartsRes.data || [];
+                console.log(`[ELITE] Loaded: ${sessions.length} sessions, ${events.length} events, ${carts.length} carts`);
+                updateDashboard();
+                showToast('✅', '<strong>Datos cargados</strong> — Dashboard conectado a Supabase Realtime');
+            } catch (err) {
+                console.error('[ELITE] Fatal error loading data:', err);
+                showToast('❌', `<strong>Error de conexión</strong> — ${err.message}`);
+            }
+        }
+
+        // ============================================================
+        // REALTIME SUBSCRIPTIONS
+        // ============================================================
+        function setupRealtime() {
+            // Subscribe to sesiones changes
+            supabase
+                .channel('sesiones-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'sesiones' }, (payload) => {
+                    handleRealtimeChange('sesiones', payload);
+                })
+                .subscribe();
+
+            // Subscribe to eventos_utm changes
+            supabase
+                .channel('eventos-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos_utm' }, (payload) => {
+                    handleRealtimeChange('eventos_utm', payload);
+                })
+                .subscribe();
+
+            // Subscribe to carritos changes
+            supabase
+                .channel('carritos-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'carritos' }, (payload) => {
+                    handleRealtimeChange('carritos', payload);
+                })
+                .subscribe();
+        }
+
+        function handleRealtimeChange(table, payload) {
+            const { eventType, new: newRow, old: oldRow } = payload;
+
+            if (table === 'sesiones') {
+                if (eventType === 'INSERT') { sessions.unshift(newRow); showToast('👁️', `<strong>Nueva sesión</strong> desde ${newRow.origen} — ${newRow.ciudad || 'desconocida'}`); }
+                else if (eventType === 'UPDATE') { sessions = sessions.map(s => s.id === newRow.id ? newRow : s); }
+                else if (eventType === 'DELETE') { sessions = sessions.filter(s => s.id !== oldRow.id); }
+            }
+            else if (table === 'eventos_utm') {
+                if (eventType === 'INSERT') { events.unshift(newRow); showToast('📡', `<strong>${formatEventName(newRow.evento)}</strong> — ${newRow.utm_campaign || 'directo'}`); }
+            }
+            else if (table === 'carritos') {
+                if (eventType === 'INSERT') { carts.unshift(newRow); showToast('🛒', `<strong>Nuevo carrito</strong> — $${formatCurrency(newRow.valor_total)}`); }
+                else if (eventType === 'UPDATE') {
+                    carts = carts.map(c => c.id === newRow.id ? newRow : c);
+                    if (newRow.estado === 'recuperado' && oldRow?.estado !== 'recuperado') {
+                        showToast('🎉', `<strong>¡Carrito RECUPERADO!</strong> ${newRow.cliente_nombre} — $${formatCurrency(newRow.valor_total)}`);
+                    }
+                    if (newRow.estado === 'convertido' && oldRow?.estado !== 'convertido') {
+                        showToast('💰', `<strong>¡CONVERSIÓN!</strong> ${newRow.cliente_nombre} — $${formatCurrency(newRow.valor_total)}`);
+                    }
+                }
+            }
+            updateDashboard();
+        }
+
+        // ============================================================
+        // DASHBOARD UPDATE
+        // ============================================================
+        function updateDashboard() {
+            updateKPIs();
+            updateCartPanel();
+            updateEventFeed();
+            updateCampaignTable();
+        }
+
+        function updateKPIs() {
+            const activeSessions = sessions.filter(s => s.activa).length;
+            const conversions = carts.filter(c => c.estado === 'convertido').length;
+            const abandoned = carts.filter(c => c.estado === 'abandonado').length;
+            const recovered = carts.filter(c => c.estado === 'recuperado').length;
+            const totalAbandoned = abandoned + recovered;
+            const recoveryRate = totalAbandoned > 0 ? ((recovered / totalAbandoned) * 100).toFixed(1) : '0';
+            const revenue = carts.filter(c => ['convertido', 'recuperado'].includes(c.estado)).reduce((sum, c) => sum + (c.valor_total || 0), 0);
+
+            document.getElementById('kpi-sessions').textContent = activeSessions;
+            document.getElementById('kpi-sessions-detail').textContent = `${sessions.length} totales hoy`;
+            document.getElementById('kpi-conversions').textContent = conversions;
+            document.getElementById('kpi-conversions-detail').textContent = `${((conversions / Math.max(sessions.length, 1)) * 100).toFixed(1)}% tasa conversión`;
+            document.getElementById('kpi-abandoned').textContent = abandoned;
+            document.getElementById('kpi-abandoned-detail').textContent = `${((abandoned / Math.max(carts.length, 1)) * 100).toFixed(0)}% del total`;
+            document.getElementById('kpi-recovery').textContent = `${recoveryRate}%`;
+            document.getElementById('kpi-recovery-detail').textContent = `${recovered} de ${totalAbandoned} recuperados`;
+            document.getElementById('kpi-revenue').textContent = `$${formatCurrency(revenue)}`;
+            document.getElementById('kpi-revenue-detail').textContent = `${conversions + recovered} ventas completadas`;
+        }
+
+        function updateCartPanel() {
+            const counts = { activo: 0, abandonado: 0, en_recuperacion: 0, recuperado: 0, convertido: 0, perdido: 0 };
+            carts.forEach(c => { if (counts.hasOwnProperty(c.estado)) counts[c.estado]++; });
+
+            document.getElementById('cart-active').textContent = counts.activo;
+            document.getElementById('cart-abandoned').textContent = counts.abandonado;
+            document.getElementById('cart-recovering').textContent = counts.en_recuperacion;
+            document.getElementById('cart-recovered').textContent = counts.recuperado;
+            document.getElementById('cart-converted').textContent = counts.convertido;
+            document.getElementById('cart-lost').textContent = counts.perdido;
+
+            const cartList = document.getElementById('cart-list');
+            cartList.innerHTML = carts.slice(0, 10).map(cart => {
+                const initials = (cart.cliente_nombre || '??').split(' ').map(n => n[0]).join('').substring(0, 2);
+                const colors = {
+                    activo: 'var(--accent-blue)',
+                    abandonado: 'var(--accent-orange)',
+                    en_recuperacion: 'var(--accent-yellow)',
+                    recuperado: 'var(--accent-cyan)',
+                    convertido: '#0ead69',
+                    perdido: 'var(--accent-red)'
+                };
+                const statusLabels = {
+                    activo: 'Activo',
+                    abandonado: 'Abandonado',
+                    en_recuperacion: 'En Recup.',
+                    recuperado: 'Recuperado',
+                    convertido: 'Convertido',
+                    perdido: 'Perdido'
+                };
+                return `
+                    <div class="cart-item">
+                        <div class="cart-avatar" style="background:${colors[cart.estado] || '#555'}">${initials}</div>
+                        <div class="cart-info">
+                            <div class="cart-name">${cart.cliente_nombre || 'Anónimo'}</div>
+                            <div class="cart-detail">${cart.utm_campaign || 'directo'} • ${cart.plataforma_ads || '-'}</div>
+                        </div>
+                        <div class="cart-amount">$${formatCurrency(cart.valor_total)}</div>
+                        <span class="status-badge ${cart.estado}">${statusLabels[cart.estado] || cart.estado}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateEventFeed() {
+            const feed = document.getElementById('event-feed');
+            feed.innerHTML = events.slice(0, 25).map(evt => `
+                <div class="event-item">
+                    <div class="event-dot ${evt.plataforma_ads || 'organic'}"></div>
+                    <div class="event-content">
+                        <div class="event-type">${formatEventName(evt.evento)}</div>
+                        <div class="event-meta">${evt.utm_campaign || 'directo'} • ${evt.pagina || '/'}</div>
+                    </div>
+                    <span class="event-time">${formatTime(evt.created_at)}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateCampaignTable() {
+            // Aggregate campaigns from events
+            const campaigns = {};
+            events.forEach(evt => {
+                const key = evt.utm_campaign || 'directo';
+                if (!campaigns[key]) {
+                    campaigns[key] = {
+                        name: key,
+                        platform: evt.plataforma_ads || 'organic',
+                        sessions: 0, whatsapp: 0, addToCart: 0, purchases: 0, revenue: 0
+                    };
+                }
+                if (evt.evento === 'page_view') campaigns[key].sessions++;
+                if (evt.evento === 'click_whatsapp' || evt.evento === 'lead_whatsapp') campaigns[key].whatsapp++;
+                if (evt.evento === 'add_to_cart') campaigns[key].addToCart++;
+                if (evt.evento === 'purchase') { campaigns[key].purchases++; campaigns[key].revenue += (evt.valor_evento || 0); }
+            });
+
+            const tbody = document.getElementById('campaign-body');
+            tbody.innerHTML = Object.values(campaigns)
+                .sort((a, b) => b.revenue - a.revenue)
+                .map(c => {
+                    const cvr = c.sessions > 0 ? ((c.purchases / c.sessions) * 100).toFixed(1) : '0.0';
+                    let action, actionClass;
+                    if (parseFloat(cvr) >= 5 && c.purchases >= 2) { action = '🚀 ESCALAR'; actionClass = 'scale'; }
+                    else if (c.sessions >= 5 && c.purchases === 0) { action = '🛑 APAGAR'; actionClass = 'kill'; }
+                    else if (parseFloat(cvr) >= 1) { action = '⚠️ OPTIMIZAR'; actionClass = 'optimize'; }
+                    else { action = '👀 MONITOREAR'; actionClass = 'monitor'; }
+
+                    return `
+                        <tr>
+                            <td class="campaign-name">${formatCampaignName(c.name)}</td>
+                            <td><span class="platform-tag ${c.platform}">${c.platform}</span></td>
+                            <td class="mono">${c.sessions}</td>
+                            <td class="mono">${c.whatsapp}</td>
+                            <td class="mono">${c.addToCart}</td>
+                            <td class="mono">${c.purchases}</td>
+                            <td class="mono">$${formatCurrency(c.revenue)}</td>
+                            <td class="mono">${cvr}%</td>
+                            <td><span class="action-tag ${actionClass}">${action}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+        }
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function formatCurrency(value) {
+            return (value || 0).toLocaleString('es-CO');
+        }
+        function formatTime(ts) {
+            if (!ts) return '--:--';
+            const d = new Date(ts);
+            return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+        function formatEventName(event) {
+            const names = {
+                'page_view': '👁️ Page View',
+                'click_whatsapp': '💬 Click WhatsApp',
+                'click_comprar': '🛍️ Click Comprar',
+                'scroll_50': '📜 Scroll 50%',
+                'scroll_100': '📜 Scroll 100%',
+                'video_play': '🎬 Video Play',
+                'form_submit': '📝 Form Submit',
+                'add_to_cart': '🛒 Add to Cart',
+                'checkout_start': '💳 Checkout Start',
+                'purchase': '💰 PURCHASE',
+                'lead_whatsapp': '📱 Lead WhatsApp',
+                'call_click': '📞 Call Click'
+            };
+            return names[event] || event;
+        }
+        function formatCampaignName(name) {
+            return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        async function init() {
+            await loadInitialData();
+            setupRealtime();
+        }
+        init();
+    </script>
+</body>
+</html>
