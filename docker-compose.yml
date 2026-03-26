@@ -22,4 +22,4 @@ services:
 networks:
   pegasus:
     external: true
-    name: pegasus.net
+    name: pegasus_net
