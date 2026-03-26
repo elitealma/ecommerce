@@ -10,7 +10,7 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.elite-dashboard.rule=Host(`ecomerce.pegasus360agency.com`)"
+      - "traefik.http.routers.elite-dashboard.rule=Host(`ecommerce.pegasus360agency.com`)"
       - "traefik.http.routers.elite-dashboard.entrypoints=websecure"
       - "traefik.http.routers.elite-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.services.elite-dashboard.loadbalancer.server.port=80"
