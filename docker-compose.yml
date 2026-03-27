@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   elite-dashboard:
-    build: .
-    image: elite-dashboard:latest
+    image: ghcr.io/elitealma/ecommerce:latest
     deploy:
       replicas: 1
       restart_policy:
